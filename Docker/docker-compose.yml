@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Backend Service (Node.js)
+  backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    container_name: backend
+    environment:
+      - PORT=5000
+      - DB=mongodb://mongo:27017/mydatabase
+      - CLOUD_NAME=${CLOUD_NAME}
+      - API_KEY=${API_KEY}
+      - API_SECRET=${API_SECRET}
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo  # Ensure mongo is up before the backend starts
+    env_file:
+      - Backend/.env  # Load environment variables from .env file
+    networks:
+      - app-network
+
+  # MongoDB Service
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db  # Persist MongoDB data between container restarts
+    networks:
+      - app-network
+
+  # Frontend Service (React)
+  frontend:
+    build:
+      context: .
+      dockerfile: Frontend/Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend  # Ensure backend is up before frontend starts
+    environment:
+      - REACT_APP_API_URL=http://backend:5000/api  # API URL for frontend (backend service)
+      - REACT_APP_CLOUD_NAME=${CLOUD_NAME}
+      - REACT_APP_API_KEY=${API_KEY}
+      - REACT_APP_API_SECRET=${API_SECRET}
+    networks:
+      - app-network
+    env_file:
+      - Frontend/.env  # Load environment variables from .env file
+
+# Define networks
+networks:
+  app-network:
+    driver: bridge  # Create a bridge network for inter-container communication
+
+# Define volumes (for persistent MongoDB storage)
+volumes:
+  mongo-data:
+    driver: local  # Use local driver for persistent storage
